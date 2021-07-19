@@ -1,2 +1,2 @@
-# rent-a-bike
-bike rental system that allows one to book and rent a bike.
+# Rent A Room
+Home Rental management system for homes,  hostels and small accomodations.
