@@ -9,6 +9,7 @@ djangorestframework = "*"
 psycopg2 = "*"
 python-decouple = "*"
 dj-database-url = "*"
+jwt = "*"
 
 [dev-packages]
 

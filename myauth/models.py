@@ -1,7 +1,12 @@
+import jwt, datetime
+from datetime import timedelta
+from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager, PermissionsMixin)
+
+
 
 # Create your models here.
 class UserManager(BaseUserManager):
@@ -12,6 +17,10 @@ class UserManager(BaseUserManager):
          """
          if not username:
              raise ValueError("Username is required")
+        
+         if not email:
+            raise ValueError("User must have an email")
+
          user = self.model(
              email=self.normalize_email(email)
          )
@@ -79,3 +88,18 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def has_module_perms(self, app_label):
         return True
+
+    def generate_jwt_token(self):
+        """This generates a JSON Web Token that stores"""
+        token_string = str(self.email) + " " + str(self.username)
+        token = jwt.encode(
+            {
+                'user_data': token_string,
+                'exp': datetime.now() + timedelta(hours=5)
+            }, settings.SECRET_KEY, algorithm='HS256'
+        )
+        return token.decode('utf-8')
+
+    def token(self):
+        """This method allows us to get users' token by calling 'user.token'"""
+        return self.generate_jwt_token()
