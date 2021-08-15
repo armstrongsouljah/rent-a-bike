@@ -4,16 +4,9 @@ import uuid
 from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
-
-from authors.apps.utils.messages import error_messages
-from authors.apps.utils.validators.validation_helpers import (validate_password,
-                                                              validate_username,
-                                                              validate_field_exists,
-                                                              find_email_by_username)
-
+from django.contrib.auth import authenticate
 from .models import User
-from .register_social import create_social_user
-from .social_auth import SocialAuth
+
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
@@ -23,70 +16,50 @@ class RegistrationSerializer(serializers.ModelSerializer):
     # characters, and can not be read by the client.
     password = serializers.CharField(
         max_length=128,
-        write_only=True
-    )
+        write_only=True)
     email = serializers.EmailField()
     username = serializers.CharField()
 
-    # The client should not be able to send a token along with a registration
-    # request. Making `token` read-only handles that for us.
     token = serializers.CharField(max_length=255, read_only=True)
 
     class Meta:
         model = User
-        # List all of the fields that could possibly be included in a request
-        # or response, including fields specified explicitly above.
         fields = ['email', 'username', 'password', 'token']
 
     def validate_password(self, password):
         """ 
-        This function validates the password input by a new user signing up
-        It ensures that the password length is longer than 8 characters to be considered valid.
-        The password should also contain at least a letter and number. 
-        Args: 
-            password (str): This is password string received from user
-        Returns: 
-            Returns the validated password
-        Raises: 
-            ValidationError: 
-            - ("Password must be longer than 8 characters."): for very short passwords
-            - ("Password should at least contain a number, capital and small letter."): for non alphanumeric paaswords  
+        Validates entered password against acceptance criteria 
         """
-        return validate_password(password)
+        if password and len(password) < 6:
+            raise serializers.ValidationError("Password must be 6 characters or more")
+        if password and not password.isalnum():
+            raise serializers.ValidationError("Password must have a atleast one number")
+        if not password:
+            raise serializers.ValidationError("Password is required")
+        return password
 
     def validate_email(self, email):
         """ 
-        A function to validate the email input by a new user signing up
-        It ensures that the email being used for signing up was not already used by another user.
-        Args: 
-            email(str): This is the email string received from user
-        Returns: 
-            Returns the validated email
-        Raises: 
-            ValidationError: 
-            - "Email already exists." : for an already existing email
+        Validates entered email against acceptance criteria 
         """
 
         check_email = User.objects.filter(email=email)
         if check_email.exists():
-            raise serializers.ValidationError("Email already exists.")
+            raise serializers.ValidationError("User with this email already exists.")
         return email
 
     def validate_username(self, username):
         """ 
-        Validation function of the username input by a new user signing up
-        It ensures that the username being used for signing up was not already used by another user.
-        It also ensures the username only contains numbers and letters.
-        Args: 
-            username (str): username
-        Returns: 
-            Returns the validated username
-        Raises: 
-            ValidationError: 
-            - "Username already exists." : for an already existing username
-            - "Username can only contain letters and numbers." : for an invalid username
+        Cleans username data entered
         """
-        return validate_username(username)
+        check_username = User.objects.filter(username=username)
+        if check_username.exists():
+            raise serializers.ValidationError("Username already taken.")
+        if not username:
+            raise serializers.ValidationError("Usernaem")
+        if username and not username.isalpha():
+            raise serializers.ValidationError("Username can only contain letters")
+        return username
 
     def create(self, validated_data):
         # Use the `create_user` method we wrote earlier to create a new user.
@@ -94,8 +67,8 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.CharField(max_length=255, required=False)
-    username = serializers.CharField(max_length=255, required=False)
+    email = serializers.CharField(max_length=255)
+    username = serializers.CharField(max_length=255, read_only=True)
     password = serializers.CharField(max_length=128, write_only=True)
     token = serializers.CharField(max_length=255, read_only=True)
 
@@ -106,38 +79,39 @@ class LoginSerializer(serializers.Serializer):
         # and password and that this combination matches one of the users in
         # our database.
         email = data.get('email', None)
-        username = data.get('username', None)
         password = data.get('password', None)
-   
-        # As mentioned above, an email is required. Raise an exception if an
+
+        # Raise an exception if an
         # email is not provided.
-        if email is None and username is None:
+        if email is None:
             raise serializers.ValidationError(
-                error_messages['field required'].format('Email or Username')
+                'An email address is required to log in.'
             )
 
-        # As mentioned above, a password is required. Raise an exception if a
+        # Raise an exception if a
         # password is not provided.
-        validate_field_exists(
-            password, error_messages['field required'].format('Password'))   
+        if password is None:
+            raise serializers.ValidationError(
+                'A password is required to log in.'
+            )
 
         # The `authenticate` method is provided by Django and handles checking
         # for a user that matches this email/password combination. Notice how
-        # we pass `email` as the `username` value. Remember that, in our User
-        # model, we set `USERNAME_FIELD` as `email`.
-        if username is not None:
-            email = find_email_by_username(username)
-
+        # we pass `email` as the `username` value since in our User
+        # model we set `USERNAME_FIELD` as `email`.
         user = authenticate(username=email, password=password)
+
         # If no user was found matching this email/password combination then
         # `authenticate` will return `None`. Raise an exception in this case.
-        validate_field_exists(
-            user, 'A user with this email and password was not found.')
+        if user is None:
+            raise serializers.ValidationError(
+                'A user with this email and password was not found.'
+            )
 
         # Django provides a flag on our `User` model called `is_active`. The
-        # purpose of this flag to tell us whether the user has been banned
-        # or otherwise deactivated. This will almost never be the case, but
-        # it is worth checking for. Raise an exception in this case.
+        # purpose of this flag is to tell us whether the user has been banned
+        # or deactivated. This will almost never be the case, but
+        # it is worth checking. Raise an exception in this case.
         if not user.is_active:
             raise serializers.ValidationError(
                 'This user has been deactivated.'
@@ -152,6 +126,10 @@ class LoginSerializer(serializers.Serializer):
             'token': user.token
         }
 
+        
+   
+       
+
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -164,8 +142,7 @@ class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         max_length=128,
         min_length=8,
-        write_only=True
-    )
+        write_only=True)
     token = serializers.SerializerMethodField()
     class Meta:
         model = User

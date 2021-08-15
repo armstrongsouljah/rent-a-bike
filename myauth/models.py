@@ -1,4 +1,5 @@
-import jwt, datetime
+import jwt
+from datetime import datetime
 from datetime import timedelta
 from django.conf import settings
 from django.db import models
@@ -81,7 +82,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def is_active(self):
-        return self.is_active
+        return self.active
 
     def has_perm(self, perm, obj=None):
         return True
@@ -98,7 +99,7 @@ class User(AbstractBaseUser, PermissionsMixin):
                 'exp': datetime.now() + timedelta(hours=5)
             }, settings.SECRET_KEY, algorithm='HS256'
         )
-        return token.decode('utf-8')
+        return token
 
     def token(self):
         """This method allows us to get users' token by calling 'user.token'"""

@@ -1,6 +1,6 @@
 import jwt
 from django.conf import settings
-from django.contrib.auth.models import get_user_model
+from django.contrib.auth import get_user_model
 from rest_framework import exceptions, authentication
 
 
@@ -11,7 +11,8 @@ class JWTAuthentication(authentication.BaseAuthentication):
     """ Class to authenticate the user """
 
     def authenticate(self, request):
-        """ cheks authorizatio header for every request """
+        """ cheks authorization header for every request """
+
         auth_header = authentication.get_authorization_header(
             request).split()
         if not auth_header:
@@ -59,5 +60,5 @@ class JWTAuthentication(authentication.BaseAuthentication):
         if not user.is_active:
             msg = "User has been deactivated"
             raise exceptions.AuthenticationFailed(msg)
-        return (user, token)
+        return (user, token,)
 
