@@ -126,11 +126,6 @@ class LoginSerializer(serializers.Serializer):
             'token': user.token
         }
 
-        
-   
-       
-
-
 
 class UserSerializer(serializers.ModelSerializer):
     """Handles serialization and deserialization of User objects."""

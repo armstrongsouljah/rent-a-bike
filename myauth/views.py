@@ -98,3 +98,13 @@ class UserRetrieveUpdateAPIView(RetrieveUpdateAPIView):
         serializer.save()
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class PasswordResetView(GenericAPIView):
+    """Allow a user to reset their password"""
+    def post(self, *args, **kwargs):
+        data = self.request.POST
+        print("*>> data", data)
+        return {
+            'message': 'Hello'
+        }
