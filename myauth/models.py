@@ -1,11 +1,16 @@
 import jwt
 from datetime import datetime
 from datetime import timedelta
+
 from django.conf import settings
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager, PermissionsMixin)
+
 
 
 
@@ -104,3 +109,29 @@ class User(AbstractBaseUser, PermissionsMixin):
     def token(self):
         """This method allows us to get users' token by calling 'user.token'"""
         return self.generate_jwt_token()
+
+
+class UserProfile(models.Model):
+    """"
+    Stores more information about a user."""
+    GENDER_CHOICES = (
+        (1, 'Male'),
+        (2, 'Female')
+    )
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, blank=True, null=True,
+        related_name='user_profile')
+    first_name = models.CharField(max_length=240, blank=True, null=True)
+    last_name = models.CharField(max_length=240, blank=True, null=True)
+    gender = models.CharField(
+        max_length=230, choices=GENDER_CHOICES, default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self) -> str:
+        return f'{self.user.email}'
+
+@receiver(post_save, sender=User)
+def generate_profile_on_signup(sender, instance, **kwargs):
+    """Auto generate a profile for a new user """
+    UserProfile.objects.get_or_create(user=instance)
